@@ -1,0 +1,705 @@
+<!-- NOTE: You must press the connect but to join a session, existing or not -->
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Blackjack</title>
+		<meta charset="UTF-8"/>
+
+		<!-- Include React, ReactDOM, Babel -->
+		<script crossorigin src="https://unpkg.com/react@16/umd/react.development.js"></script>
+		<script crossorigin src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
+		<script crossorigin src="https://unpkg.com/babel-standalone/babel.js"></script>
+
+		<!-- Include Bootstrap CSS Framework -->
+		<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.0/css/bootstrap.min.css" integrity="sha384-9gVQ4dYFwwWSjIDZnLEWnxCjeSWFphJiwGPXr1jddIhOegiu1FwO5qRGvFXOdJZ4" crossorigin="anonymous">
+
+		<link rel="stylesheet" href="style.css"  />
+
+	</head>
+	<body style="background-color: rgba(191,191,191, 1.0);">
+
+		<!-- Title -->
+		<div style="background-color: rgba(123,125,123, 1.0);">
+				<span style="font-family: 'Impact', Charcoal, sans-serif; text-shadow: 1px 2px 2px #bfbfbf; font-size: 46px; letter-spacing: 3px;">BLACKJACK</span>
+		</div>
+
+		<!-- React -->
+ 		<div id="root"></div>
+		<script type="text/babel">
+			'use strict';
+
+			class GameStatus extends React.Component {
+
+				render() {
+
+					return (
+						<div className="GameStatus">
+							<button onClick={this.props.connect} disabled={!this.props.connectEnabled} className="btn btn-secondary" type="button" name="connectButton">Connect</button>
+							<label className="status">Status: <output>{this.props.status}</output></label>
+							<label> . . . </label>
+							<label className="session">Session: <output>{this.props.session}</output></label>
+						</div>
+					);
+				}
+			}
+
+			class GameResult extends React.Component {
+
+				render() {
+
+					console.log(this.props.betAmount);
+
+					return (
+
+						<div className="GameResult">
+
+							<label>Result: <output>{this.props.result}</output></label><br/>
+							<label>You bet: <output>{this.props.oldAmount}</output></label><br/>
+							<label>You made: <output>{this.props.made}</output></label><br/>
+
+						</div>
+
+					);
+				}
+			}
+
+			class GameBetting extends React.Component {
+
+				constructor(props) {
+					super(props);
+					this.state = {
+						betAmount: ""
+					}
+
+					this.betAmountChanged = this.betAmountChanged.bind(this);
+				}
+
+				betAmountChanged(e) {
+					this.setState({betAmount: e.target.value})
+					this.props.betChanged(e.target.value);
+				}
+
+				render() {
+
+					return (
+						<div className="GameBetting">
+							<div className="container">
+								<div><label>Money: <output>{this.props.money}</output></label></div>
+								<div><label>You Bet: <output>{this.props.betAmount}</output></label></div>
+								<div className="input-group">
+									<div className="input-group-prepend">
+										<span className="input-group-text">Bet: </span>
+									</div>
+									<input onChange={this.betAmountChanged} disabled={!this.props.betEnabled} type="number" className="form-control" value={this.state.betAmount}></input>
+								</div>
+								<button onClick={this.props.placeBet} disabled={!this.props.betEnabled} className="btn btn-secondary" type="button">Place Bet</button>
+							</div>
+						</div>
+					);
+
+				}
+
+			}
+
+			class GameBoard extends React.Component {
+
+				render() {
+
+					return (
+
+						<div className="GameBoard">
+
+							<div className="board" className="container" >
+
+								<div className="felt">
+
+									<h1 className="dealerHandLabel">Dealers Cards</h1>
+									<div className="cardContainer" className="container" >
+										<label className="cardText">{this.props.dealerCards}</label>
+									</div>
+
+									<div className="p-4 mb-2 text-white"></div>
+
+									<div className="cardContainer" className="container" >
+										<label className="cardText">{this.props.playerCards}</label>
+									</div>
+									<h1 className="playerHandLabel" >Your Cards</h1>
+
+								</div>
+							</div>
+						</div>
+					);
+
+				}
+
+			}
+
+			class GameControls extends React.Component {
+
+				render() {
+
+					return (
+
+						<div className="GameControls" >
+							<button  onClick={this.props.standClick} className="btn btn-secondary" disabled={!this.props.gameButtonsEnabled} type="button">Stand</button>
+							<button  onClick={this.props.hitClick} className="btn btn-secondary" disabled={!this.props.gameButtonsEnabled} type="button">Hit</button>
+							<button  onClick={this.props.doubleDownClick} className="btn btn-secondary" disabled={!this.props.gameButtonsEnabled} type="button">Double Down</button>
+							<button  onClick={this.props.surrenderClick} className="btn btn-secondary" disabled={!this.props.surrenderEnabled} type="button">Surrender</button>
+						</div>
+					);
+				}
+			}
+
+			class Gambling extends React.Component {
+
+				constructor() {
+					super();
+					this.state = {
+						url: "https://pizza.cs.ualberta.ca/296/",
+						token: "tpYCGn9+pPJuG4jN4n5VPm4K86THIpS/KzIYpViOfXY=",
+						status: "",
+						session: localStorage.getItem("session"),
+						money: 0,
+						result: "",
+						made: "",
+						betAmount: "",
+						oldAmount: "",
+						dealerCards: "",
+						playerCards: "",
+						betEnabled: false,
+						connectEnabled: true,
+						surrenderEnabled: false,
+						gameButtonsEnabled: false
+					}
+
+					this.post = this.post.bind(this);
+					this.connect = this.connect.bind(this);
+					this.getStatus = this.getStatus.bind(this);
+					this.refreshUI = this.refreshUI.bind(this);
+
+					this.clearLastGame = this.clearLastGame.bind(this);
+
+					this.betAmountChanged = this.betAmountChanged.bind(this);
+
+					this.printCardsCurrentGame = this.printCardsCurrentGame.bind(this);
+					this.printCardsLastGame = this.printCardsLastGame.bind(this);
+
+					this.bet.bind(this);
+					this.hit.bind(this);
+					this.stand.bind(this);
+					this.surrender.bind(this);
+					this.doubleDown.bind(this);
+				}
+
+				// Prepare for a new game
+				refreshUI(myJson) {
+
+					this.printCardsLastGame(myJson);
+					this.printResult(myJson);
+					this.setState({money: myJson.money, betEnabled: true, gameButtonsEnabled: false, surrenderEnabled: false});
+				}
+
+				clearLastGame() {
+					this.setState({result: "", oldAmount: "", made: ""});
+				}
+
+
+				connect() {
+
+					// Connect to "hello" page
+					this.post("startup", this.state.url, {});
+					this.setState({betEnabled: true, connectEnabled: false});
+
+					var formBody = [];
+					var key = encodeURIComponent("token");
+					var value = encodeURIComponent(this.state.token);
+					formBody.push(key + "=" + value);
+
+					// Create a new session if there is not already one
+					if (this.state.session == null) {
+						var fetchUrl = this.state.url+"sit";
+						var fetchParams = {
+								method: "POST",
+								body: formBody[0],
+								headers: { "Content-Type": "application/x-www-form-urlencoded" }
+						}
+						this.post("sit", fetchUrl, fetchParams)
+
+					}
+
+					// Else connect to an existing session
+					else {
+
+						var fetchUrl = this.state.url+this.state.session+"/";
+						var fetchParams = {
+								method: "POST",
+								body: formBody[0],
+								headers: { "Content-Type": "application/x-www-form-urlencoded" }
+						}
+						this.post("sitSession", fetchUrl, fetchParams);
+					}
+				}
+
+				betAmountChanged(amount) {
+					this.setState({betAmount: amount});
+				}
+
+				printResult(myJson) {
+					this.setState({result: myJson.last_game.result, oldAmount: myJson.last_game.bet, made: myJson.last_game.won})
+				}
+
+				// Display the current games hand
+				printCardsCurrentGame(myJson) {
+
+					// Parse the dealer's hand
+					var dealer_cards = "";
+					for (var i in myJson.game.dealer_hand) {
+							var card = myJson.game.dealer_hand[i];
+							if (card == "1") {
+									card = "A";
+							}
+							else if (card == "11") {
+									card = "J";
+							}
+							else if (card == "12") {
+									card = "Q";
+							}
+							else if (card == "13") {
+									card = "K";
+							}
+							dealer_cards += card + ", ";
+					}
+					console.log("Dealer Cards: " + dealer_cards);
+
+					// Parse the player's hand
+					var player_cards = "";
+					for (var i in myJson.game.player_hand) {
+							var card = myJson.game.player_hand[i];
+							if (card == "1") {
+									card = "A";
+							}
+							else if (card == "11") {
+									card = "J";
+							}
+							else if (card == "12") {
+									card = "Q";
+							}
+							else if (card == "13") {
+									card = "K";
+							}
+							player_cards += card + ", ";
+					}
+					console.log("Player Cards: " + player_cards);
+					console.log("");
+
+					this.setState({dealerCards: dealer_cards, playerCards: player_cards});
+
+				}
+
+				// Display the last games hand
+				printCardsLastGame(myJson) {
+
+					// Show the dealers cards in the console
+					var dealer_cards = "";
+					for (var i in myJson.last_game.dealer_hand) {
+							var card = myJson.last_game.dealer_hand[i];
+							if (card == "1") {
+									card = "A";
+							}
+							else if (card == "11") {
+									card = "J";
+							}
+							else if (card == "12") {
+									card = "Q";
+							}
+							else if (card == "13") {
+									card = "K";
+							}
+							dealer_cards += card + ", ";
+					}
+					console.log("Dealer Cards: " + dealer_cards);
+
+					// Show the players cards in the console
+					var player_cards = "";
+					for (var i in myJson.last_game.player_hand) {
+							var card = myJson.last_game.player_hand[i];
+							if (card == "1") {
+									card = "A";
+							}
+							else if (card == "11") {
+									card = "J";
+							}
+							else if (card == "12") {
+									card = "Q";
+							}
+							else if (card == "13") {
+									card = "K";
+							}
+							player_cards += card + ", ";
+					}
+					console.log("Player Cards: " + player_cards);
+					console.log("");
+
+					this.setState({dealerCards: dealer_cards, playerCards: player_cards});
+				}
+
+
+				changed(event) {
+					var name = event.target.name;
+					alert(name);
+
+					if (name === "bet") {
+						return;
+					}
+
+					else if (name === "betButton") {
+						// Do a bet thing
+					}
+
+					else if (name === "hit") {
+
+					}
+
+					else if (name === "stand") {
+
+					}
+
+					else if (name === "surrender") {
+
+					}
+
+					else if (name === "double_down") {
+
+					}
+
+				}
+
+				// Get the status text from the status code
+				getStatus(response) {
+
+					// Taken from user "amenoire" on March 22, 2018
+					// https://stackoverflow.com/questions/22987349/is-there-a-way-to-get-http-status-code-name-using-js-and-angularjs
+					var HTTP_STATUS_CODES = {
+							'200' : 'OK',
+							'201' : 'Created',
+							'202' : 'Accepted',
+							'203' : 'Non-Authoritative Information',
+							'204' : 'No Content',
+							'205' : 'Reset Content',
+							'206' : 'Partial Content',
+							'300' : 'Multiple Choices',
+							'301' : 'Moved Permanently',
+							'302' : 'Found',
+							'303' : 'See Other',
+							'304' : 'Not Modified',
+							'305' : 'Use Proxy',
+							'307' : 'Temporary Redirect',
+							'400' : 'Bad Request',
+							'401' : 'Unauthorized',
+							'402' : 'Payment Required',
+							'403' : 'Forbidden',
+							'404' : 'Not Found',
+							'405' : 'Method Not Allowed',
+							'406' : 'Not Acceptable',
+							'407' : 'Proxy Authentication Required',
+							'408' : 'Request Timeout',
+							'409' : 'Conflict',
+							'410' : 'Gone',
+							'411' : 'Length Required',
+							'412' : 'Precondition Failed',
+							'413' : 'Request Entity Too Large',
+							'414' : 'Request-URI Too Long',
+							'415' : 'Unsupported Media Type',
+							'416' : 'Requested Range Not Satisfiable',
+							'417' : 'Expectation Failed',
+							'500' : 'Internal Server Error',
+							'501' : 'Not Implemented',
+							'502' : 'Bad Gateway',
+							'503' : 'Service Unavailable',
+							'504' : 'Gateway Timeout',
+							'505' : 'HTTP Version Not Supported'
+					};
+
+					return HTTP_STATUS_CODES[response.status];
+
+				}
+
+				post(action, fetchUrl, fetchParams) {
+
+
+					fetch(fetchUrl, fetchParams)
+					.then(response => {
+
+						this.state.status = this.getStatus(response);
+
+						if (action === "startup") {
+							return response.text();
+						}
+						else {
+							return response.json();
+						}
+
+					})
+					.then(myJson => {
+						//do action specific thing...
+
+						console.log(myJson);
+
+						if (action === "sit") {
+
+							console.log("New Session: " + myJson.session);
+							localStorage.setItem("session", myJson.session);
+							this.setState({session: myJson.session, money: myJson.money});
+						}
+						else if (action === "sitSession") {
+
+							console.log("Reconnected to previous session...");
+
+							// Set the money
+							this.setState({money: myJson.money});
+
+							// If we reconnected to a fresh Session
+							if (Object.keys(myJson)[0] == "money") {
+
+								this.clearLastGame();
+								this.setState({surrenderEnabled: false, gameButtonsEnabled: false, betEnabled: true});
+							}
+
+							// If we reconnected to a sesssion in progress
+							else if (Object.keys(myJson)[0] == "game") {
+
+								// Don't allow surrender if the player has hit at least once
+								if ((myJson.game.player_hand).length > 2) {
+
+									this.setState({surrenderEnabled: false});
+								}
+
+								this.clearLastGame();
+								this.setState({betAmount:myJson.game.bet, betEnabled: false, gameButtonsEnabled: true})
+								this.printCardsCurrentGame(myJson);
+							}
+
+							// If we reconnected to a sesssion that had just ended
+							else if (Object.keys(myJson[0] == "last_game")) {
+
+								this.printCardsLastGame(myJson);
+								this.printResult(myJson);
+								this.refreshUI(myJson);
+							}
+
+						}
+
+						else if (action === "bet") {
+
+							console.log("New Match!");
+							this.setState({betEnabled: false, gameButtonsEnabled: true, surrenderEnabled: true});
+							// clearLastGame();
+
+							if (Object.keys(myJson)[0] == "game") {
+
+								// Show the bet amount in the console
+								console.log("You bet: " + this.state.betAmount);
+
+								// Show the new amount of money (post-bet) in the console
+								this.setState({money: myJson.money});
+								console.log("Money: " + myJson.money)
+
+								this.printCardsCurrentGame(myJson);
+							}
+							else {
+								this.refreshUI(myJson);
+							}
+						}
+
+						else if (action === "hit") {
+
+							console.log("You Hit!");
+							if (Object.keys(myJson)[0] == "game") {
+								this.printCardsCurrentGame(myJson);
+								this.setState({surrenderEnabled: false});
+							}
+							else {
+								this.refreshUI(myJson);
+							}
+
+						}
+
+						else if (action === "stand") {
+
+							console.log("You Stand");
+							this.refreshUI(myJson);
+						}
+
+						else if  (action === "doubleDown") {
+
+							console.log("You Double Down!");
+
+							if (Object.keys(myJson)[0] == "game") {
+								this.printCardsCurrentGame(myJson);
+							}
+							else {
+								this.refreshUI(myJson);
+							}
+
+						}
+
+						else if (action === "surrender") {
+
+							console.log("You Surrender");
+							this.refreshUI(myJson);
+						}
+					});
+
+				}
+
+				bet() {
+
+					this.setState({result: "", oldAmount: "", made: ""});
+
+					// Build the encoded body for the POST request
+					var formBody = [];
+					var fetchParams = {}
+					var key = encodeURIComponent("token");
+					var value = encodeURIComponent(this.state.token);
+					formBody.push(key + "=" + value);
+					key = encodeURIComponent("amount");
+					value = encodeURIComponent(this.state.betAmount);
+					formBody.push(key + "=" + value);
+					formBody = formBody[0] + "&" + formBody[1];
+
+					var fetchUrl = this.state.url+this.state.session+"/bet";
+					var fetchParams = {
+	            method: "POST",
+	            body: formBody,
+	            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+	        }
+
+					this.post("bet", fetchUrl, fetchParams);
+
+				}
+
+				hit() {
+
+					// Build the encoded body for the POST request
+					var formBody = [];
+					var fetchUrl = this.state.url+this.state.session+"/hit";
+					var key = encodeURIComponent("token");
+					var value = encodeURIComponent(this.state.token);
+					formBody.push(key + "=" + value);
+
+					var fetchParams = {
+							method: "POST",
+							body: formBody[0],
+							headers: { "Content-Type": "application/x-www-form-urlencoded" }
+					}
+
+					this.post("hit", fetchUrl, fetchParams);
+				}
+
+				stand() {
+
+					// Build the encoded body for the POST request
+					var formBody = [];
+					var fetchUrl = this.state.url+this.state.session+"/stand";
+					var key = encodeURIComponent("token");
+					var value = encodeURIComponent(this.state.token);
+					formBody.push(key + "=" + value);
+
+					var fetchParams = {
+	            method: "POST",
+	            body: formBody[0],
+	            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+	        }
+
+					this.post("stand", fetchUrl, fetchParams);
+				}
+
+				surrender() {
+
+					// Build the encoded body for the POST request
+					var formBody = [];
+					var fetchUrl = this.state.url+this.state.session+"/surrender";
+					var key = encodeURIComponent("token");
+					var value = encodeURIComponent(this.state.token);
+					formBody.push(key + "=" + value);
+
+					var fetchParams = {
+	            method: "POST",
+	            body: formBody[0],
+	            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+	        }
+
+					this.post("surrender", fetchUrl, fetchParams);
+
+				}
+
+				doubleDown() {
+
+					// Build the encoded body for the POST request
+					var formBody = [];
+					var fetchUrl = this.state.url+this.state.session+"/double_down";
+					var key = encodeURIComponent("token");
+					var value = encodeURIComponent(this.state.token);
+					formBody.push(key + "=" + value);
+
+					var fetchParams = {
+	            method: "POST",
+	            body: formBody[0],
+	            headers: { "Content-Type": "application/x-www-form-urlencoded" }
+	        }
+
+					this.post("doubleDown", fetchUrl, fetchParams);
+				}
+
+
+				render() {
+
+					return (
+
+						<div className="Gambling">
+
+							<GameStatus connect={this.connect.bind(this)} connectEnabled={this.state.connectEnabled} session={this.state.session} status={this.state.status} ></GameStatus>
+							<GameResult result={this.state.result} oldAmount={this.state.oldAmount} made={this.state.made}></GameResult>
+							<GameBetting betChanged={this.betAmountChanged.bind(this)} oldAmount={this.state.oldAmount} money={this.state.money} betAmount={this.state.betAmount} betEnabled={this.state.betEnabled} placeBet={this.bet.bind(this)} ></GameBetting>
+							<GameBoard playerCards={this.state.playerCards} dealerCards={this.state.dealerCards}></GameBoard>
+							<GameControls surrenderEnabled={this.state.surrenderEnabled} surrenderClick={this.surrender.bind(this)} doubleDownClick={this.doubleDown.bind(this)} standClick={this.stand.bind(this)} hitClick={this.hit.bind(this)} gameButtonsEnabled={this.state.gameButtonsEnabled}></GameControls>
+
+						</div>
+					);
+
+				}
+			}
+
+		ReactDOM.render(<Gambling/>, document.getElementById("root"));
+		</script>
+
+		<!-- Rules and licenses (non-dynamic) -->
+		<div style="position: relative; margin-top: 100px;">
+
+			<!-- Rules -->
+			<footer style="position:relative; margin-top: 150px; width:100%; height:100px; border-top:2px solid #626462; background-color: rgba(123,125,123, 1.0);">
+
+				<!-- Taken from gambling.html by Joshua Charles Campbell on April 13, 2018 -->
+				The full rules may be found on
+				    <a href="https://en.wikipedia.org/wiki/Blackjack" style="color: white;">Wikipedia</a> and elsewhere.
+				    The variant of blackjack used here:
+				    <ul>
+				        <li>Does not allow splitting.</li>
+				        <li>The dealer hits on Soft 17.</li>
+				        <li>Allows only late surrender.</li>
+				    </ul>
+			</footer>
+
+
+			<!-- License -->
+			<footer style="position:relative; bottom:0; width:100%; height:100px; border-top:2px solid #626462; background-color: rgba(123,125,123, 1.0);">
+
+				<!-- Taken from gambling.html by Joshua Charles Campbell on April 13, 2018 -->
+				<a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/"><img alt="Creative Commons License" style="margin-top: 25px; margin-bottom: 10px; border-width:0;" src="https://i.creativecommons.org/l/by-nc-sa/4.0/88x31.png"/></a><br/><span xmlns:dct="http://purl.org/dc/terms/" href="http://purl.org/dc/dcmitype/InteractiveResource" property="dct:title" rel="dct:type">Blackjack</span> by <span xmlns:cc="http://creativecommons.org/ns#" property="cc:attributionName">Araien Zach Redfern</span> is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-nc-sa/4.0/" style="color: white;">Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License</a>.
+
+			</footer>
+
+		</div>
+
+	</body>
+</html>
